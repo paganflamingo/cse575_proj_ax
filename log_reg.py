@@ -1,72 +1,55 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler       # scaling data
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split   # splitting data
+from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score             # grading
 from sklearn.metrics import f1_score             # grading
-
-from sklearn.linear_model import Perceptron
 
 # ******************************************************************************
 # * Load data
 # ******************************************************************************
 
-df = pd.read_csv('cse575_project/cse575_proj_ax/cse575_proj_data/output.csv')
+data = pd.read_csv('cse575_project/cse575_proj_ax/cse575_proj_data/output.csv')  # filename
+labels = data['koi_disposition'].to_numpy()
+data = data.drop('koi_disposition', axis=1).to_numpy()
 
-x = df.iloc[:, 0:25]
-y = df.iloc[:, 25:]
+# generate kfolds
+kf = KFold(n_splits=5, shuffle=True, random_state=0)
 
-# x = pd.read_csv('cse575_project/cse575_proj_ax/cse575_proj_data/x_raw.csv')
-# y = pd.read_csv('cse575_project/cse575_proj_ax/cse575_proj_data/y_raw.csv')
+# for each kfold
+i = 0
 
-# ******************************************************************************
-# * Create model
-# ******************************************************************************
+acc = []
+mac = []
+mic = []
+wf1 = []
 
-# accuracy = []
-# macro_f1 = []
-# micro_f1 = []
-# weighted_f1 = []
+tp = []
+tn = []
+fp = []
+fn = []
 
-for i in range(10):
+for train_index, test_index in kf.split(data, labels):
+    x_train, x_test = data[train_index], data[test_index]
+    y_train, y_test = labels[train_index], labels[test_index]
 
-    x_train_split, x_test_split, y_train_split, y_test_split = train_test_split(x, y, test_size=0.3)
+    model = LogisticRegression(C=7.1, solver='liblinear', multi_class='auto')
+    model.fit(x_train, y_train)
 
-    stdsc = StandardScaler()
-    x_train_std = stdsc.fit_transform(x_train_split)
-    x_test_std = stdsc.transform(x_test_split)
+    y_pred = model.predict(x_test)
 
-    model = LogisticRegression(C=7.1, solver='liblinear', multi_class='auto', random_state=0)
-    model.fit(x_train_std, y_train_split)
-
-    y_pred = model.predict(x_test_std)
-
-    # y_pred = []
-    # for j in y_pred_inv:
-    #     if int(j) == 0:
-    #         y_pred.append(1)
-    #     else:
-    #         y_pred.append(0)
-
-    print(f'Run {i}')
-    print('*************************************')
-
-    print(f'Accuracy:       {accuracy_score(y_pred, y_test_split)}')
-    print(f'Macro F1:       {f1_score(y_test_split, y_pred, average="macro")}')
-    print(f'Micro F1:       {f1_score(y_test_split, y_pred, average="micro")}')
-    print(f'Weighted F1:    {f1_score(y_test_split, y_pred, average="weighted")}')
+    acc.append(accuracy_score(y_pred, y_test))
+    mac.append(f1_score(y_test, y_pred, average="macro"))
+    mic.append(f1_score(y_test, y_pred, average="micro"))
+    wf1.append(f1_score(y_test, y_pred, average="weighted"))
 
     true_pos = 0
     true_neg = 0
     false_pos = 0
     false_neg = 0
 
-    print(int(y_pred[0]))
-    print(int(y_test_split.iloc[0].values))
-
-    for j in range(y_test_split.shape[0]):
-        if int(y_test_split.iloc[j].values) == int(y_pred[j]):
+    for j in range(y_test.shape[0]):
+        if int(y_test[j]) == int(y_pred[j]):
             if int(y_pred[j]) == 1:
                 true_pos += 1
             else:
@@ -77,20 +60,17 @@ for i in range(10):
             else:
                 false_neg += 1
 
-    print(f'False +:        {false_pos}')
-    print(f'False -:        {false_neg}')
-    print(f'True  +:        {true_pos}')
-    print(f'True  -:        {true_neg}')
+    fp.append(false_pos)
+    fn.append(false_neg)
+    tp.append(true_pos)
+    tn.append(true_neg)
 
-    print()
-
-    # accuracy.append(accuracy_score(y_pred, y_test_split))
-
-    # macro_f1.append(f1_score(y_test_split, y_pred, average='macro'))
-    # micro_f1.append(f1_score(y_test_split, y_pred, average='micro'))
-    # weighted_f1.append(f1_score(y_test_split, y_pred, average='weighted'))
-
-
-# print(np.mean(accuracy))
-# print(np.mean(macro_f1))
-# print(np.mean(micro_f1))
+print(f'Accuracy: {np.mean(acc)}')
+print(f'Macro F1: {np.mean(mac)}')
+print(f'Micro F1: {np.mean(mic)}')
+print(f'Weighted F1: {np.mean(wf1)}')
+print()
+print(f'True +: {np.mean(tp)}')
+print(f'True -: {np.mean(tn)}')
+print(f'False +: {np.mean(fp)}')
+print(f'False -: {np.mean(fn)}')
